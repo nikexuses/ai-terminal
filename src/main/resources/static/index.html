@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Terminal</title>
+    <style>
+        body {
+            background: black;
+            color: #00ff88;
+            font-family: monospace;
+            padding: 20px;
+        }
+
+        #terminal {
+            max-width: 800px;
+        }
+
+        .line {
+            margin: 4px 0;
+            white-space: pre-wrap;
+        }
+
+        #input-line {
+            display: flex;
+        }
+
+        #cmd {
+            background: black;
+            border: none;
+            color: #00ff88;
+            outline: none;
+            font-family: monospace;
+            font-size: 16px;
+            flex: 1;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            background: #00ff88;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0% {opacity: 1;}
+            50% {opacity: 0;}
+            100% {opacity: 1;}
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="terminal"></div>
+
+<div id="input-line">
+    <span>&gt; </span>
+    <input id="cmd" autofocus />
+    <span class="cursor"></span>
+</div>
+
+<script>
+const terminal = document.getElementById("terminal");
+const input = document.getElementById("cmd");
+
+let history = [];
+let historyIndex = -1;
+
+function addLine(text) {
+    const div = document.createElement("div");
+    div.className = "line";
+    div.innerText = text;
+    terminal.appendChild(div);
+    window.scrollTo(0, document.body.scrollHeight);
+}
+
+function typeEffect(text) {
+    return new Promise(resolve => {
+        let i = 0;
+        const div = document.createElement("div");
+        div.className = "line";
+        terminal.appendChild(div);
+
+        const interval = setInterval(() => {
+            div.innerText += text[i];
+            i++;
+            if (i >= text.length) {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 10);
+    });
+}
+
+async function send() {
+    const cmd = input.value;
+    if (!cmd) return;
+
+    history.push(cmd);
+    historyIndex = history.length;
+
+    addLine("> " + cmd);
+    input.value = "";
+
+    const loading = document.createElement("div");
+    loading.className = "line";
+    loading.innerText = "thinking...";
+    terminal.appendChild(loading);
+
+    const res = await fetch(`/terminal/execute?input=${encodeURIComponent(cmd)}`);
+    const data = await res.text();
+
+    loading.remove();
+
+    if (data === "CLEAR_SCREEN") {
+        terminal.innerHTML = "";
+        return;
+    }
+
+    await typeEffect(data);
+}
+
+input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") send();
+
+    if (e.key === "ArrowUp") {
+        if (historyIndex > 0) {
+            historyIndex--;
+            input.value = history[historyIndex];
+        }
+    }
+
+    if (e.key === "ArrowDown") {
+        if (historyIndex < history.length - 1) {
+            historyIndex++;
+            input.value = history[historyIndex];
+        } else {
+            input.value = "";
+        }
+    }
+});
+</script>
+
+</body>
+</html>
