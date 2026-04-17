@@ -10,7 +10,8 @@ import org.springframework.web.client.RestTemplate;
 @RequestMapping("/terminal")
 public class TestController {
 
-    private final String API_KEY = "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";
+    // 🔐 Read API key from environment (Render)
+    private final String API_KEY = System.getenv("OPENROUTER_API_KEY");
 
     @GetMapping("/execute")
     public String execute(@RequestParam String input) {
@@ -31,6 +32,12 @@ public class TestController {
 
     private String callAI(String prompt) {
         try {
+
+            // ❗ Check if API key exists
+            if (API_KEY == null || API_KEY.isEmpty()) {
+                return "Error: API key not set in environment!";
+            }
+
             RestTemplate restTemplate = new RestTemplate();
             ObjectMapper mapper = new ObjectMapper();
 
@@ -62,7 +69,12 @@ public class TestController {
                     restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
 
             JsonNode root = mapper.readTree(response.getBody());
-            return root.path("choices").get(0).path("message").path("content").asText();
+
+            return root.path("choices")
+                       .get(0)
+                       .path("message")
+                       .path("content")
+                       .asText();
 
         } catch (Exception e) {
             return "Error: " + e.getMessage();
